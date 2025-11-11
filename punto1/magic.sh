@@ -18,7 +18,8 @@ ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}"
 
 # --------- Construir imagen ---------
 echo "🛠️ Construyendo imagen Docker compatible con AWS Lambda..."
-docker buildx build \
+# Desactivamos BuildKit para que el manifest quede en formato Docker schema2 (aceptado por Lambda)
+DOCKER_BUILDKIT=0 docker build \
   --no-cache \
   --platform linux/amd64 \
   -t ${REPO_NAME}:${IMAGE_TAG} .
