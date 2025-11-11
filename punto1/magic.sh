@@ -1,0 +1,37 @@
+#!/bin/bash
+# Script para construir y subir una imagen Docker a AWS ECR
+# Autor: (tu nombre)
+# Uso: ./deploy_to_ecr.sh <aws_account_id> <region> <repo_name>
+
+# --------- Variables ---------
+AWS_ACCOUNT_ID=$1
+REGION=$2
+REPO_NAME=$3
+IMAGE_TAG="latest"
+
+# --------- Validaciones ---------
+if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$REGION" ] || [ -z "$REPO_NAME" ]; then
+  echo "Uso: $0 <aws_account_id> <region> <repo_name>"
+  exit 1
+fi
+
+# --------- Construir imagen ---------
+echo "🛠️ Construyendo imagen Docker..."
+docker build -t ${REPO_NAME}:${IMAGE_TAG} .
+
+# --------- Obtener URL completa del repositorio ---------
+ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}"
+
+# --------- Etiquetar imagen ---------
+echo "🏷️ Etiquetando imagen como ${ECR_URI}:${IMAGE_TAG}..."
+docker tag ${REPO_NAME}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
+
+# --------- Login a ECR ---------
+echo "🔐 Iniciando sesión en Amazon ECR..."
+aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+
+# --------- Subir imagen ---------
+echo "⬆️ Subiendo imagen a ECR..."
+docker push ${ECR_URI}:${IMAGE_TAG}
+
+echo "✅ Imagen subida exitosamente a: ${ECR_URI}:${IMAGE_TAG}"
