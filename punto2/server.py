@@ -7,7 +7,7 @@ import boto3
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException
 
-from punto2.model import User
+from model import User
 
 
 CSV_FIELDS = ["nombre", "edad", "altura"]
