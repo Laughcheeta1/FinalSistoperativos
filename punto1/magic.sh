@@ -1,6 +1,5 @@
 #!/bin/bash
-# Script para construir y subir una imagen Docker a AWS ECR
-# Autor: (tu nombre)
+# Script para construir y subir una imagen Docker a AWS ECR (compatible con Lambda)
 # Uso: ./deploy_to_ecr.sh <aws_account_id> <region> <repo_name>
 
 # --------- Variables ---------
@@ -15,12 +14,14 @@ if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$REGION" ] || [ -z "$REPO_NAME" ]; then
   exit 1
 fi
 
-# --------- Construir imagen ---------
-echo "🛠️ Construyendo imagen Docker..."
-docker build -t ${REPO_NAME}:${IMAGE_TAG} .
-
-# --------- Obtener URL completa del repositorio ---------
 ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}"
+
+# --------- Construir imagen ---------
+echo "🛠️ Construyendo imagen Docker compatible con AWS Lambda..."
+docker buildx build \
+  --no-cache \
+  --platform linux/amd64 \
+  -t ${REPO_NAME}:${IMAGE_TAG} .
 
 # --------- Etiquetar imagen ---------
 echo "🏷️ Etiquetando imagen como ${ECR_URI}:${IMAGE_TAG}..."
@@ -28,7 +29,16 @@ docker tag ${REPO_NAME}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
 
 # --------- Login a ECR ---------
 echo "🔐 Iniciando sesión en Amazon ECR..."
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+aws ecr get-login-password --region ${REGION} | \
+docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+
+# --------- Crear repositorio si no existe ---------
+echo "🗂️ Verificando si el repositorio existe..."
+aws ecr describe-repositories --repository-names ${REPO_NAME} --region ${REGION} >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  echo "📦 Repositorio no encontrado, creando uno nuevo..."
+  aws ecr create-repository --repository-name ${REPO_NAME} --region ${REGION}
+fi
 
 # --------- Subir imagen ---------
 echo "⬆️ Subiendo imagen a ECR..."
